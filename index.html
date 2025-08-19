@@ -1,0 +1,57 @@
+
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Plan Físico • Correlatividades</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>Plan Físico</h1>
+    <p class="subtitle">Correlatividades y avance de materias</p>
+  </header>
+
+  <main class="container">
+    <!-- Buscador -->
+    <section class="panel" id="buscador-panel">
+      <h2>Buscador</h2>
+      <input id="search" type="search" placeholder="Buscar por nombre de materia…" autocomplete="off" />
+      <ul id="search-results"></ul>
+    </section>
+
+    <!-- Checklist -->
+    <section class="panel" id="checklist-panel">
+      <h2>Checklist</h2>
+      <div id="checklist"></div>
+    </section>
+
+    <!-- Matriz -->
+    <section class="panel" id="matriz-panel">
+      <h2>Matriz de correlatividades</h2>
+      <div id="matriz" class="matriz-grid"></div>
+      <div class="legend">
+        <span class="badge aprobada">APROBADA</span>
+        <span class="badge habilitada">HABILITADA</span>
+        <span class="badge bloqueada">BLOQUEADA</span>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal -->
+  <dialog id="modal">
+    <div class="modal-content">
+      <h3 id="modal-title">Materia bloqueada</h3>
+      <p id="modal-body"></p>
+      <button id="modal-close" class="btn">Cerrar</button>
+    </div>
+  </dialog>
+
+  <footer class="app-footer">
+    <small>Mobile‑first • Colores: #f3efdc & #24496e • Datos en local</small>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
