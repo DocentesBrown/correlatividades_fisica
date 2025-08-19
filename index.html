@@ -14,32 +14,36 @@
   </header>
 
   <main class="container">
-    <!-- Buscador -->
+    <section class="panel" id="progreso-panel">
+      <h2>Progreso</h2>
+      <div id="progreso-wrap">
+        <div id="progreso-topline"></div>
+        <div class="progress"><div class="progress-fill" id="progress-fill"></div></div>
+        <div id="progreso-nota" class="meta"></div>
+      </div>
+    </section>
     <section class="panel" id="buscador-panel">
       <h2>Buscador</h2>
       <input id="search" type="search" placeholder="Buscar por nombre de materia…" autocomplete="off" />
       <ul id="search-results"></ul>
     </section>
 
-    <!-- Checklist -->
     <section class="panel" id="checklist-panel">
-      <h2>Checklist</h2>
-      <div id="checklist"></div>
+      <h2><button class="collapse-toggle" data-target="checklist-panel">Checklist ▾</button></h2>
+      <div class="collapsible-body" data-body="checklist-panel"><div id="checklist"></div></div>
     </section>
 
-    <!-- Matriz -->
     <section class="panel" id="matriz-panel">
-      <h2>Matriz de correlatividades</h2>
-      <div id="matriz" class="matriz-grid"></div>
+      <h2><button class="collapse-toggle" data-target="matriz-panel">Matriz de correlatividades ▾</button></h2>
+      <div class="collapsible-body" data-body="matriz-panel"><div id="matriz" class="matriz-grid"></div>
       <div class="legend">
         <span class="badge aprobada">APROBADA</span>
         <span class="badge habilitada">HABILITADA</span>
         <span class="badge bloqueada">BLOQUEADA</span>
       </div>
-    </section>
+    </div></section>
   </main>
 
-  <!-- Modal -->
   <dialog id="modal">
     <div class="modal-content">
       <h3 id="modal-title">Materia bloqueada</h3>

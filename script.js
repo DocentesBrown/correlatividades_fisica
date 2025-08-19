@@ -1,7 +1,6 @@
 
-const STATE_KEY = 'fisica_avance_v1';
+const STATE_KEY = 'fisica_avance_v2';
 
-// Cargar materias
 let materias = [];
 fetch('materias.json')
   .then(r => r.json())
@@ -10,26 +9,41 @@ fetch('materias.json')
     init();
   });
 
-// Estado en localStorage: { aprobadas: {id: {nota:number}} }
 function loadState(){
   try{
-    return JSON.parse(localStorage.getItem(STATE_KEY)) || {aprobadas:{}};
+    return JSON.parse(localStorage.getItem(STATE_KEY)) || {aprobadas:{}, cursadas:{}};
   }catch(e){
-    return {aprobadas:{}};
+    return {aprobadas:{}, cursadas:{}};
   }
 }
 function saveState(st){ localStorage.setItem(STATE_KEY, JSON.stringify(st)); }
 
 function init(){
+  setupModal();
+  setupBuscador();
+  setupCollapsibles();
+  renderProgreso();
   renderChecklist();
   renderMatriz();
-  setupBuscador();
-  setupModal();
 }
 
 function setupModal(){
   const dlg = document.getElementById('modal');
   document.getElementById('modal-close').onclick = ()=> dlg.close();
+}
+
+function passThreshold(m){
+  const fmt = (m.formato || '').toLowerCase();
+  return fmt.includes('asignatura') ? 4 : 7;
+}
+function isAprobada(m, state){
+  const reg = state.aprobadas[m.id];
+  if(!reg) return false;
+  const nota = Number(reg.nota);
+  return !Number.isNaN(nota) && nota >= passThreshold(m);
+}
+function hasCursada(m, state){
+  return !!state.cursadas[m.id] || isAprobada(m, state);
 }
 
 function setupBuscador(){
@@ -44,7 +58,6 @@ function setupBuscador(){
       const li = document.createElement('li');
       li.textContent = `${m.id}. ${m.nombre}`;
       li.onclick = ()=>{
-        // scroll to card in checklist
         const el = document.querySelector(`[data-card-id="${m.id}"]`);
         if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); el.classList.add('pulse'); setTimeout(()=>el.classList.remove('pulse'), 800); }
       };
@@ -53,23 +66,33 @@ function setupBuscador(){
   });
 }
 
-// Evaluar si una materia está habilitada según prerrequisitos y estado
 function isHabilitada(m, state){
-  // Regla: requisitos de 'requiresAcreditar' deben estar aprobados con nota
-  const haveApproved = (id) => !!state.aprobadas[id];
-  const all = (arr) => arr.every(x => {
-    if(typeof x === 'number') return haveApproved(x);
-    if(x && x.anyOf) return x.anyOf.some(id => haveApproved(id));
+  const haveApproved = (id) => {
+    const mm = materias.find(x=>x.id===id);
+    return mm ? isAprobada(mm, state) : false;
+  };
+  const haveCursada = (id) => {
+    const mm = materias.find(x=>x.id===id);
+    return mm ? hasCursada(mm, state) : false;
+  };
+  const allCursada = (arr) => arr.every(x => {
+    if (typeof x === 'number') return haveCursada(x);
+    if (x && x.anyOf) return x.anyOf.some(id => haveCursada(id));
     return true;
   });
+  const allAcreditar = (arr) => arr.every(x => {
+    if (typeof x === 'number') return haveApproved(x);
+    if (x && x.anyOf) return x.anyOf.some(id => haveApproved(id));
+    return true;
+  });
+
   const reqC = m.prerrequisitos.requiresCursada || [];
   const reqA = m.prerrequisitos.requiresAcreditar || [];
-  // Para el prototipo, consideramos que "cursada" también se satisface si está aprobada
-  return all(reqC) && all(reqA);
+  return allCursada(reqC) && allAcreditar(reqA);
 }
 
 function statusDeMateria(m, state){
-  if (state.aprobadas[m.id]) return {tipo:'APROBADA', clase:'aprobada'};
+  if (isAprobada(m, state)) return {tipo:'APROBADA', clase:'aprobada'};
   return isHabilitada(m, state) ? {tipo:'HABILITADA', clase:'habilitada'} : {tipo:'BLOQUEADA', clase:'bloqueada'};
 }
 
@@ -94,6 +117,23 @@ function renderChecklist(){
 
     const row = document.createElement('div');
     row.className = 'row';
+
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.checked = !!state.cursadas[m.id];
+    chk.id = `cursada-${m.id}`;
+    const lbl = document.createElement('label');
+    lbl.htmlFor = chk.id;
+    lbl.textContent = 'Cursada';
+    chk.onchange = ()=>{
+      const s = loadState();
+      if(chk.checked){ s.cursadas[m.id] = true; } else { delete s.cursadas[m.id]; }
+      saveState(s);
+      renderChecklist();
+      renderMatriz();
+      renderProgreso();
+    };
+
     const input = document.createElement('input');
     input.type = 'number';
     input.min = '0'; input.max = '10'; input.step='0.1';
@@ -106,21 +146,31 @@ function renderChecklist(){
     btn.onclick = ()=>{
       const nota = parseFloat(input.value);
       const s = loadState();
-      if(!isNaN(nota)){
-        s.aprobadas[m.id] = {nota};
+      if(!Number.isNaN(nota)){
+        if(!s.aprobadas[m.id]) s.aprobadas[m.id] = {};
+        s.aprobadas[m.id].nota = nota;
       }else{
         delete s.aprobadas[m.id];
       }
       saveState(s);
       renderChecklist();
       renderMatriz();
+      renderProgreso();
     };
+
+    row.appendChild(chk);
+    row.appendChild(lbl);
     row.appendChild(input);
     row.appendChild(btn);
+
+    const um = document.createElement('div');
+    um.className = 'meta';
+    um.textContent = `Aprueba con ≥ ${passThreshold(m)} (según formato)`;
 
     card.appendChild(head);
     card.appendChild(meta);
     card.appendChild(row);
+    card.appendChild(um);
     cont.appendChild(card);
   });
 }
@@ -133,54 +183,152 @@ function renderMatriz(){
     const st = statusDeMateria(m, state);
     const box = document.createElement('div');
     box.className = `materia-box ${st.clase}`;
+
+    const nota = state.aprobadas[m.id]?.nota;
+    const notaTxt = (nota !== undefined && nota !== '') ? ` • Nota: ${nota}` : '';
+
     box.innerHTML = `<div class="nombre">${m.id}. ${m.nombre}</div>
-      <div class="detalle">Año ${m.anio} • ${m.regimen} • ${m.formato}</div>`;
+      <div class="detalle">Año ${m.anio} • ${m.regimen} • ${m.formato}${notaTxt}</div>`;
+
     box.onclick = () => {
       if(st.clase === 'bloqueada'){
         mostrarBloqueo(m, state);
-      }else{
-        // Toggle aprobado rápido: si ya está aprobada, quitar; si está habilitada, marcar aprobada con "6"
+      }else if(st.clase === 'habilitada'){
+        const val = prompt(`Ingresá la nota final para “${m.nombre}” (aprueba con ≥ ${passThreshold(m)}). Dejá vacío para no guardar.`);
+        if (val === null) return;
+        const nota = parseFloat(val);
         const s = loadState();
-        if (st.clase === 'aprobada'){
+        if(!Number.isNaN(nota)){
+          if(!s.aprobadas[m.id]) s.aprobadas[m.id] = {};
+          s.aprobadas[m.id].nota = nota;
+          saveState(s);
+          renderChecklist();
+          renderMatriz();
+        }
+      }else{
+        const cur = state.aprobadas[m.id]?.nota ?? '';
+        const val = prompt(`Editar nota para “${m.nombre}” (actual: ${cur}). Borrar para eliminar.`, cur);
+        if (val === null) return;
+        const s = loadState();
+        if (val.trim()===''){
           delete s.aprobadas[m.id];
         } else {
-          s.aprobadas[m.id] = {nota: 6};
+          const nota = parseFloat(val);
+          if(!Number.isNaN(nota)){
+            if(!s.aprobadas[m.id]) s.aprobadas[m.id] = {};
+            s.aprobadas[m.id].nota = nota;
+          }
         }
         saveState(s);
         renderChecklist();
         renderMatriz();
+        renderProgreso();
       }
     };
     grid.appendChild(box);
   });
 }
 
-function mostrarBloqueo(m, state){
-  const faltan = requisitosFaltantes(m, state);
-  const partes = faltan.map(fr => {
-    if (Array.isArray(fr)) {
-      return `al menos una de: ${fr.join(', ')}`;
+function requisitosFaltantesNombres(m, state){
+  const haveApproved = (id) => {
+    const mm = materias.find(x=>x.id===id);
+    return mm ? isAprobada(mm, state) : false;
+  };
+  const haveCursada = (id) => {
+    const mm = materias.find(x=>x.id===id);
+    return mm ? hasCursada(mm, state) : false;
+  };
+  const falt = [];
+  const pushIfMissingC = (token)=>{
+    if (typeof token === 'number'){
+      if (!haveCursada(token)){
+        const mm = materias.find(x=>x.id===token);
+        if(mm) falt.push(mm.nombre);
+      }
+    } else if (token && token.anyOf){
+      const ok = token.anyOf.some(id => haveCursada(id));
+      if (!ok){
+        const names = token.anyOf.map(id => (materias.find(x=>x.id===id)||{}).nombre).filter(Boolean);
+        falt.push(names);
+      }
     }
-    return `${fr}`;
-  });
-  const texto = partes.length ? `Para cursar “${m.nombre}”, necesitás aprobar ${partes.join(' y ')}.` : 'No pudimos determinar los requisitos.';
+  };
+  const pushIfMissingA = (token)=>{
+    if (typeof token === 'number'){
+      if (!haveApproved(token)){
+        const mm = materias.find(x=>x.id===token);
+        if(mm) falt.push(mm.nombre);
+      }
+    } else if (token && token.anyOf){
+      const ok = token.anyOf.some(id => haveApproved(id));
+      if (!ok){
+        const names = token.anyOf.map(id => (materias.find(x=>x.id===id)||{}).nombre).filter(Boolean);
+        falt.push(names);
+      }
+    }
+  };
+  (m.prerrequisitos.requiresCursada||[]).forEach(pushIfMissingC);
+  (m.prerrequisitos.requiresAcreditar||[]).forEach(pushIfMissingA);
+  return falt;
+}
+
+function mostrarBloqueo(m, state){
+  const faltan = requisitosFaltantesNombres(m, state);
+  const partes = faltan.map(fr => Array.isArray(fr) ? `al menos una de: ${fr.join(', ')}` : `${fr}`);
+  const texto = partes.length ? `Para cursar “${m.nombre}”, necesitás: ${partes.join(' y ')}.` : 'No pudimos determinar los requisitos.';
   document.getElementById('modal-title').textContent = 'Materia bloqueada';
   document.getElementById('modal-body').textContent = texto;
   document.getElementById('modal').showModal();
 }
 
-// Devuelve lista de requisitos faltantes en formato: [8, [5,6]]  => significa "8 y (5 o 6)"
-function requisitosFaltantes(m, state){
-  const have = (id)=> !!state.aprobadas[id];
-  const falt = [];
-  const pushIfMissing = (token)=>{
-    if (typeof token === 'number'){
-      if (!have(token)) falt.push(token);
-    } else if (token && token.anyOf){
-      const ok = token.anyOf.some(id => have(id));
-      if (!ok) falt.push(token.anyOf.slice());
+
+// === Progreso ===
+function renderProgreso(){
+  const state = loadState();
+  const total = materias.length;
+  const aprobadasIds = Object.keys(state.aprobadas).map(k=>Number(k)).filter(id => {
+    const m = materias.find(x=>x.id===id);
+    return m && isAprobada(m, state);
+  });
+  const aprobadas = aprobadasIds.length;
+  const porcentaje = total > 0 ? Math.round((aprobadas/total)*100) : 0;
+
+  const topline = document.getElementById('progreso-topline');
+  if(topline){
+    const curs = Object.keys(state.cursadas||{}).length;
+    topline.textContent = `Aprobadas: ${aprobadas}/${total} (${porcentaje}%) • Cursadas: ${curs}`;
+  }
+  const fill = document.getElementById('progress-fill');
+  if(fill){ fill.style.width = porcentaje + '%'; }
+
+  const nota = document.getElementById('progreso-nota');
+  if(nota){
+    let msg = '';
+    if (porcentaje === 100){
+      msg = 'Felicitaciones, podes anotarte en el 108 A';
+    } else if (porcentaje >= 75){
+      msg = 'Podes anotarte en el listado 108 b Item 4';
+    } else if (porcentaje >= 50){
+      msg = 'Podes anotarte en el listado 108 b Item 5';
+    } else if (porcentaje > 25){
+      msg = 'Podes anotarte en el listado de Emergencia';
+    } else {
+      msg = 'Seguí sumando materias para habilitar listados.';
     }
-  };
-  [...(m.prerrequisitos.requiresCursada||[]), ...(m.prerrequisitos.requiresAcreditar||[])].forEach(pushIfMissing);
-  return falt;
+    nota.textContent = msg;
+  }
 }
+// === /Progreso ===
+
+// === Colapsables ===
+function setupCollapsibles(){
+  document.querySelectorAll('.collapse-toggle').forEach(btn => {
+    const targetId = btn.getAttribute('data-target');
+    const panel = document.getElementById(targetId);
+    btn.addEventListener('click', ()=>{
+      panel.classList.toggle('collapsed');
+      btn.textContent = btn.textContent.includes('▾') ? btn.textContent.replace('▾','▸') : btn.textContent.replace('▸','▾');
+    });
+  });
+}
+// === /Colapsables ===
