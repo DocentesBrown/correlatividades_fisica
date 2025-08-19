@@ -9,7 +9,7 @@
 </head>
 <body>
   <header class="app-header">
-    <h1>Plan Físico</h1>
+    <h1>Profesorado de Física</h1>
     <p class="subtitle">Correlatividades y avance de materias</p>
   </header>
 
@@ -22,26 +22,27 @@
         <div id="progreso-nota" class="meta"></div>
       </div>
     </section>
+
     <section class="panel" id="buscador-panel">
       <h2>Buscador</h2>
       <input id="search" type="search" placeholder="Buscar por nombre de materia…" autocomplete="off" />
       <ul id="search-results"></ul>
     </section>
 
-    <section class="panel" id="checklist-panel">
-      <h2><button class="collapse-toggle" data-target="checklist-panel">Checklist ▾</button></h2>
+    <section class="panel" id="checklist-panel" class="collapsed">
+      <h2><button class="collapse-toggle" data-target="checklist-panel">Checklist ▸</button></h2>
       <div class="collapsible-body" data-body="checklist-panel"><div id="checklist"></div></div>
     </section>
 
-    <section class="panel" id="matriz-panel">
-      <h2><button class="collapse-toggle" data-target="matriz-panel">Matriz de correlatividades ▾</button></h2>
+    <section class="panel" id="matriz-panel" class="collapsed">
+      <h2><button class="collapse-toggle" data-target="matriz-panel">Matriz de correlatividades ▸</button></h2>
       <div class="collapsible-body" data-body="matriz-panel"><div id="matriz" class="matriz-grid"></div>
       <div class="legend">
         <span class="badge aprobada">APROBADA</span>
         <span class="badge habilitada">HABILITADA</span>
         <span class="badge bloqueada">BLOQUEADA</span>
-      </div>
-    </div></section>
+      </div></div>
+    </section>
   </main>
 
   <dialog id="modal">

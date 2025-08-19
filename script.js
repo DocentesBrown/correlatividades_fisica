@@ -165,7 +165,7 @@ function renderChecklist(){
 
     const um = document.createElement('div');
     um.className = 'meta';
-    um.textContent = `Aprueba con ≥ ${passThreshold(m)} (según formato)`;
+    um.textContent = `Aprueba con ≥ ${passThreshold(m)}`;
 
     card.appendChild(head);
     card.appendChild(meta);
@@ -204,10 +204,11 @@ function renderMatriz(){
           saveState(s);
           renderChecklist();
           renderMatriz();
+          renderProgreso();
         }
       }else{
         const cur = state.aprobadas[m.id]?.nota ?? '';
-        const val = prompt(`Editar nota para “${m.nombre}” (actual: ${cur}). Borrar para eliminar.`, cur);
+        const val = prompt(`Cosas del 41 te recomienda que al editar nota para “${m.nombre}” (actual: ${cur}). Borrar para eliminar.`, cur);
         if (val === null) return;
         const s = loadState();
         if (val.trim()===''){
@@ -274,13 +275,12 @@ function requisitosFaltantesNombres(m, state){
 
 function mostrarBloqueo(m, state){
   const faltan = requisitosFaltantesNombres(m, state);
-  const partes = faltan.map(fr => Array.isArray(fr) ? `al menos una de: ${fr.join(', ')}` : `${fr}`);
-  const texto = partes.length ? `Para cursar “${m.nombre}”, necesitás: ${partes.join(' y ')}.` : 'No pudimos determinar los requisitos.';
-  document.getElementById('modal-title').textContent = 'Materia bloqueada';
-  document.getElementById('modal-body').textContent = texto;
+  const lista = faltan.map(fr => Array.isArray(fr) ? `al menos una de: ${fr.join(', ')}` : fr);
+  document.getElementById('modal-title').textContent = 'Materia bloqueada por correlatividad';
+  const body = document.getElementById('modal-body');
+  body.innerHTML = `<strong>Para cursar:</strong> ${m.nombre}<br><strong>Necesitás:</strong>` + (lista.length ? ('<ul>' + lista.map(x=>`<li>${x}</li>`).join('') + '</ul>') : ' <em>No pudimos determinar los requisitos.</em>');
   document.getElementById('modal').showModal();
 }
-
 
 // === Progreso ===
 function renderProgreso(){
@@ -322,6 +322,14 @@ function renderProgreso(){
 
 // === Colapsables ===
 function setupCollapsibles(){
+  // set initial arrows based on collapsed state
+  document.querySelectorAll('.collapse-toggle').forEach(btn0 => {
+    const targetId0 = btn0.getAttribute('data-target');
+    const panel0 = document.getElementById(targetId0);
+    if(panel0 && panel0.classList.contains('collapsed')){
+      btn0.textContent = btn0.textContent.replace('▾','▸');
+    }
+  });
   document.querySelectorAll('.collapse-toggle').forEach(btn => {
     const targetId = btn.getAttribute('data-target');
     const panel = document.getElementById(targetId);
